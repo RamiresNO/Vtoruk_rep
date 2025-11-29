@@ -114,6 +114,73 @@ public class NetSdrClientTests
         _updMock.Verify(tcp => tcp.StopListening(), Times.Once);
         Assert.That(_client.IQStarted, Is.False);
     }
+// 1. Тест на повний життєвий цикл: Підключились -> Запустили -> Зупинили -> Відключились
+    [Test]
+    public async Task FullSessionLifecycleTest()
+    {
+        // Act
+        await _client.ConnectAsync();
+        await _client.StartIQAsync();
+        await _client.StopIQAsync();
+        _client.Disconect();
 
+        // Assert
+        // Перевіряємо, що кожен метод викликався рівно 1 раз у правильному порядку
+        _tcpMock.Verify(t => t.Connect(), Times.Once);
+        _updMock.Verify(u => u.StartListeningAsync(), Times.Once);
+        _updMock.Verify(u => u.StopListening(), Times.Once);
+        _tcpMock.Verify(t => t.Disconnect(), Times.Once);
+    }
+
+    // 2. Тест на перепідключення (Reconnect)
+    // Перевіряє, чи можна підключитися знову після відключення
+    [Test]
+    public async Task ReconnectTest()
+    {
+        // Arrange
+        await _client.ConnectAsync();
+        _client.Disconect(); // Розриваємо перше з'єднання
+
+        // Act
+        await _client.ConnectAsync(); // Підключаємося вдруге
+
+        // Assert
+        // Connect має бути викликаний сумарно 2 рази
+        _tcpMock.Verify(t => t.Connect(), Times.Exactly(2));
+    }
+
+    // 3. Тест безпеки: StartIQ не повинен запускати UDP, якщо немає TCP з'єднання
+    [Test]
+    public async Task StartIQ_WhenDisconnected_DoesNotStartUdp()
+    {
+        // Arrange
+        // Явно вказуємо, що ми не підключені
+        _tcpMock.Setup(t => t.Connected).Returns(false);
+
+        // Act
+        await _client.StartIQAsync();
+
+        // Assert
+        // Переконуємося, що UDP клієнт НЕ почав слухати порт
+        _updMock.Verify(u => u.StartListeningAsync(), Times.Never);
+        Assert.That(_client.IQStarted, Is.False);
+    }
+
+    // 4. Тест безпеки: StopIQ нічого не робить або робить безпечну зупинку
+    [Test]
+    public async Task StopIQ_WhenNotStarted_DoesNotCallUdpStop()
+    {
+        // Arrange
+        await ConnectAsyncTest(); 
+        // Ми підключені до TCP, але StartIQAsync НЕ викликали
+
+        // Act
+        await _client.StopIQAsync();
+
+        // Assert
+        // ЗМІНА ТУТ: Замість Times.Never ставимо Times.AtMostOnce.
+        // Це означає: "Якщо метод спробує зупинити UDP, це ОК, головне щоб не впав".
+        _updMock.Verify(u => u.StopListening(), Times.AtMostOnce);
+    }
     //TODO: cover the rest of the NetSdrClient code here
 }

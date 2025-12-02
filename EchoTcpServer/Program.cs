@@ -1,173 +1,83 @@
 ﻿using System;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-/// <summary>
-/// This program was designed for test purposes only
-/// Not for a review
-/// </summary>
-public class EchoServer
+namespace NetSdrClientApp
 {
-    private readonly int _port;
-    private TcpListener _listener;
-    private CancellationTokenSource _cancellationTokenSource;
-
-
-    public EchoServer(int port)
+    public class EchoServer
     {
-        _port = port;
-        _cancellationTokenSource = new CancellationTokenSource();
-    }
+        private readonly int _port;
+        private TcpListener _listener;
+        private CancellationTokenSource _cancellationTokenSource;
 
-    public async Task StartAsync()
-    {
-        _listener = new TcpListener(IPAddress.Any, _port);
-        _listener.Start();
-        Console.WriteLine($"Server started on port {_port}.");
-
-        while (!_cancellationTokenSource.Token.IsCancellationRequested)
+        public EchoServer(int port)
         {
-            try
-            {
-                TcpClient client = await _listener.AcceptTcpClientAsync();
-                Console.WriteLine("Client connected.");
+            _port = port;
+            _cancellationTokenSource = new CancellationTokenSource();
+        }
 
-                _ = Task.Run(() => HandleClientAsync(client, _cancellationTokenSource.Token));
-            }
-            catch (ObjectDisposedException)
+        public async Task StartAsync()
+        {
+            _listener = new TcpListener(IPAddress.Any, _port);
+            _listener.Start();
+            Console.WriteLine($"Server started on port {_port}.");
+
+            while (!_cancellationTokenSource.Token.IsCancellationRequested)
             {
-                // Listener has been closed
-                break;
+                try
+                {
+                    TcpClient client = await _listener.AcceptTcpClientAsync();
+                    _ = Task.Run(() => HandleClientWrapperAsync(client, _cancellationTokenSource.Token));
+                }
+                catch (ObjectDisposedException) { break; }
             }
         }
 
-        Console.WriteLine("Server shutdown.");
-    }
-
-    private async Task HandleClientAsync(TcpClient client, CancellationToken token)
-    {
-        using (NetworkStream stream = client.GetStream())
+        // Обгортка для реального TCP клієнта
+        private async Task HandleClientWrapperAsync(TcpClient client, CancellationToken token)
         {
-            try
+            using (client)
+            using (NetworkStream stream = client.GetStream())
             {
-                byte[] buffer = new byte[8192];
-                int bytesRead;
-
-                while (!token.IsCancellationRequested && (bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, token)) > 0)
-                {
-                    // Echo back the received message
-                    await stream.WriteAsync(buffer, 0, bytesRead, token);
-                    Console.WriteLine($"Echoed {bytesRead} bytes to the client.");
-                }
-            }
-            catch (Exception ex) when (!(ex is OperationCanceledException))
-            {
-                Console.WriteLine($"Error: {ex.Message}");
-            }
-            finally
-            {
-                client.Close();
+                try
+                Console.WriteLine("Client connected.");
+                // Викликаємо нашу "чисту" логіку
+                await ProcessStreamAsync(stream, token);
                 Console.WriteLine("Client disconnected.");
             }
         }
-    }
 
-    public void Stop()
-    {
-        _cancellationTokenSource.Cancel();
-        _listener.Stop();
-        _cancellationTokenSource.Dispose();
-        Console.WriteLine("Server stopped.");
-    }
-
-    public static async Task Main(string[] args)
-    {
-        EchoServer server = new EchoServer(5000);
-
-        // Start the server in a separate task
-        _ = Task.Run(() => server.StartAsync());
-
-        string host = "127.0.0.1"; // Target IP
-        int port = 60000;          // Target Port
-        int intervalMilliseconds = 5000; // Send every 3 seconds
-
-        using (var sender = new UdpTimedSender(host, port))
+        // --- ГОЛОВНА ЗМІНА: Цей метод тепер public і приймає Stream ---
+        // Це дозволяє нам тестувати його, підсовуючи MemoryStream замість мережі
+        public async Task ProcessStreamAsync(Stream stream, CancellationToken token)
         {
-            Console.WriteLine("Press any key to stop sending...");
-            sender.StartSending(intervalMilliseconds);
 
-            Console.WriteLine("Press 'q' to quit...");
-            while (Console.ReadKey(intercept: true).Key != ConsoleKey.Q)
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+
+            try
             {
-                // Just wait until 'q' is pressed
+                while (!token.IsCancellationRequested && 
+                       (bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, token)) > 0)
+                {
+                    // Ехо-логіка: пишемо назад те, що прочитали
+                    await stream.WriteAsync(buffer, 0, bytesRead, token);
+                }
             }
 
-            sender.StopSending();
-            server.Stop();
-            Console.WriteLine("Sender stopped.");
+            catch (Exception ex) when (!(ex is OperationCanceledException))
+            {
+                Console.WriteLine($"Error processing stream: {ex.Message}");
+            }
         }
-    }
-}
 
-
-public class UdpTimedSender : IDisposable
-{
-    private readonly string _host;
-    private readonly int _port;
-    private readonly UdpClient _udpClient;
-    private Timer _timer;
-
-    public UdpTimedSender(string host, int port)
-    {
-        _host = host;
-        _port = port;
-        _udpClient = new UdpClient();
-    }
-
-    public void StartSending(int intervalMilliseconds)
-    {
-        if (_timer != null)
-            throw new InvalidOperationException("Sender is already running.");
-
-        _timer = new Timer(SendMessageCallback, null, 0, intervalMilliseconds);
-    }
-
-    ushort i = 0;
-
-    private void SendMessageCallback(object state)
-    {
-        try
+        public void Stop()
         {
-            //dummy data
-            Random rnd = new Random();
-            byte[] samples = new byte[1024];
-            rnd.NextBytes(samples);
-            i++;
-
-            byte[] msg = (new byte[] { 0x04, 0x84 }).Concat(BitConverter.GetBytes(i)).Concat(samples).ToArray();
-            var endpoint = new IPEndPoint(IPAddress.Parse(_host), _port);
-
-            _udpClient.Send(msg, msg.Length, endpoint);
-            Console.WriteLine($"Message sent to {_host}:{_port} ");
+            _cancellationTokenSource.Cancel();
+            _listener.Stop();
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error sending message: {ex.Message}");
-        }
-    }
-
-    public void StopSending()
-    {
-        _timer?.Dispose();
-        _timer = null;
-    }
-
-    public void Dispose()
-    {
-        StopSending();
-        _udpClient.Dispose();
     }
 }

@@ -5,9 +5,10 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace NetSdrClientApp // <--- ВАЖЛИВО: Простір імен як у основного проекту
+namespace NetSdrClientApp
 {
-    public class EchoServer
+    // 1. Додаємо ": IDisposable" до назви класу
+    public class EchoServer : IDisposable
     {
         private readonly int _port;
         private TcpListener _listener;
@@ -33,6 +34,7 @@ namespace NetSdrClientApp // <--- ВАЖЛИВО: Простір імен як �
                     _ = Task.Run(() => HandleClientWrapperAsync(client, _cancellationTokenSource.Token));
                 }
                 catch (ObjectDisposedException) { break; }
+                catch (OperationCanceledException) { break; }
             }
         }
 
@@ -45,7 +47,6 @@ namespace NetSdrClientApp // <--- ВАЖЛИВО: Простір імен як �
             }
         }
 
-        // Цей метод ми будемо тестувати
         public async Task ProcessStreamAsync(Stream stream, CancellationToken token)
         {
             byte[] buffer = new byte[8192];
@@ -64,8 +65,21 @@ namespace NetSdrClientApp // <--- ВАЖЛИВО: Простір імен як �
 
         public void Stop()
         {
-            _cancellationTokenSource.Cancel();
-            _listener.Stop();
+            // Викликаємо Dispose, щоб не дублювати код
+            Dispose();
+        }
+
+        // 2. Реалізуємо метод Dispose, який вимагає Sonar
+        public void Dispose()
+        {
+            if (_cancellationTokenSource != null && !_cancellationTokenSource.IsCancellationRequested)
+            {
+                _cancellationTokenSource.Cancel();
+            }
+            
+            // Ось тут ми "звільняємо" токен, як просить помилка
+            _cancellationTokenSource?.Dispose();
+            _listener?.Stop();
         }
     }
 }

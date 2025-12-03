@@ -34,8 +34,8 @@ jobs:
         run: |
           dotnet tool install --global dotnet-sonarscanner
           dotnet sonarscanner begin `
-            /k:"kustiomiend-boh_labik" `
-            /o:"kustiomiend-boh-2" `
+            /k:"RamiresNO_Vtoruk_rep" `
+            /o:"ramiresno" `
             /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
             /d:sonar.host.url="https://sonarcloud.io" `
             /d:sonar.cs.opencover.reportsPaths="**/coverage.xml" `

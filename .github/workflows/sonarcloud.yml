@@ -40,8 +40,8 @@ jobs:
             /o:"ramiresno" `
             /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
             /d:sonar.host.url="https://sonarcloud.io" ` # <-- ВИПРАВЛЕНО: Зворотна лапка тут
-            /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" `
-            /d:sonar.exclusions="**/bin/**,**/obj/**,**/sonarcloud.yml" `
+            /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" ` # <-- Зворотна лапка тут
+            /d:sonar.exclusions="**/bin/**,**/obj/**,**/sonarcloud.yml" ` # <-- Зворотна лапка тут
             /d:sonar.qualitygate.wait=true # <-- Останній параметр без лапки
 
       # Відновлення пакетів

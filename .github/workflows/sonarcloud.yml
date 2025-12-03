@@ -38,8 +38,8 @@ jobs:
             /o:"ramiresno" `
             /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
             /d:sonar.host.url="https://sonarcloud.io" `
-            /d:sonar.cs.opencover.reportsPaths="**/coverage.xml,TestResults/NetSdrClientApp.coverage.xml,TestResults/EchoServer.coverage.xml" ` # <-- ВИПРАВЛЕНО: Об'єднано всі шляхи в один параметр
-            /d:sonar.exclusions=**/bin/**,**/obj/**,**/sonarcloud.yml `
+            /d:sonar.cs.opencover.reportsPaths="**/coverage.xml,TestResults/NetSdrClientApp.coverage.xml,TestResults/EchoServer.coverage.xml" `
+            /d:sonar.exclusions="**/bin/**,**/obj/**,**/sonarcloud.yml" ` # <-- ВИПРАВЛЕНО: Додані лапки для PowerShell
             /d:sonar.qualitygate.wait=true
 
       # Відновлення пакетів
@@ -63,4 +63,4 @@ jobs:
       - name: SonarScanner End
         shell: pwsh
         run: |
-          dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+          dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}" # <-- ДОДАНО: Завершення сканування

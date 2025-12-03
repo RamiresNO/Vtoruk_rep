@@ -39,9 +39,9 @@ jobs:
             /k:"RamiresNO_Vtoruk_rep" `
             /o:"ramiresno" `
             /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
-            /d:sonar.host.url="https://sonarcloud.io" ` # <-- Зворотна лапка присутня
-            /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" ` # <-- Зворотна лапка присутня
-            /d:sonar.exclusions="**/bin/**,**/obj/**,**/sonarcloud.yml" ` # <-- Зворотна лапка присутня
+            /d:sonar.host.url="https://sonarcloud.io" ` # <-- ЗВОРОТНА ЛАПКА ТУТ
+            /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" ` # <-- ЗВОРОТНА ЛАПКА ТУТ
+            /d:sonar.exclusions="**/bin/**,**/obj/**,**/sonarcloud.yml" ` # <-- ЗВОРОТНА ЛАПКА ТУТ
             /d:sonar.qualitygate.wait=true # <-- Останній параметр без лапки
 
       # Відновлення пакетів

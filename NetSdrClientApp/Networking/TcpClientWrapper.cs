@@ -90,17 +90,20 @@ namespace NetSdrClientApp.Networking
         }
 
         public async Task SendMessageAsync(byte[] data)
-        {
-            if (Connected && _stream != null && _stream.CanWrite)
-            {
-                Console.WriteLine($"Message sent: " + data.Select(b => Convert.ToString(b, toBase: 16)).Aggregate((l, r) => $"{l} {r}"));
-                await _stream.WriteAsync(data, 0, data.Length);
-            }
-            else
-            {
-                throw new InvalidOperationException("Not connected to a server.");
-            }
-        }
+{
+    if (Connected && _stream != null && _stream.CanWrite)
+    {
+        // ВИПРАВЛЕННЯ: BitConverter не впаде, якщо масив порожній
+        string hexLog = BitConverter.ToString(data).Replace("-", " ");
+        Console.WriteLine($"Message sent: {hexLog}");
+
+        await _stream.WriteAsync(data, 0, data.Length);
+    }
+    else
+    {
+        throw new InvalidOperationException("Not connected to a server.");
+    }
+}
 
         public async Task SendMessageAsync(string str)
         {

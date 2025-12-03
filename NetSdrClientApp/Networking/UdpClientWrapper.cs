@@ -1,13 +1,12 @@
-﻿using System;
+﻿﻿using System;
 using System.Net;
 using System.Net.Sockets;
-using System.Security.Cryptography;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
+// Виправлено простір імен
 namespace NetSdrClientApp.Networking;
-// Або обгорнуто в фігурні дужки {}, як у прикладі вище.
+
 public class UdpClientWrapper : IUdpClient
 {
     private readonly IPEndPoint _localEndPoint;
@@ -18,70 +17,58 @@ public class UdpClientWrapper : IUdpClient
 
     public UdpClientWrapper(int port)
     {
+        // Слухаємо на всіх інтерфейсах на вказаному порту
         _localEndPoint = new IPEndPoint(IPAddress.Any, port);
     }
 
-    public async Task StartListeningAsync()
+    public Task StartListeningAsync()
     {
+        if (_udpClient != null) return Task.CompletedTask;
+
         _cts = new CancellationTokenSource();
-        Console.WriteLine("Start listening for UDP messages...");
+        _udpClient = new UdpClient(_localEndPoint);
 
-        try
+        // Запускаємо прослуховування в окремому потоці/завданні
+        return Task.Run(async () =>
         {
-            _udpClient = new UdpClient(_localEndPoint);
-            while (!_cts.Token.IsCancellationRequested)
+            try
             {
-                UdpReceiveResult result = await _udpClient.ReceiveAsync(_cts.Token);
-                MessageReceived?.Invoke(this, result.Buffer);
-
-                Console.WriteLine($"Received from {result.RemoteEndPoint}");
+                while (!_cts.Token.IsCancellationRequested && _udpClient != null)
+                {
+                    // ReceiveAsync у UdpClient не приймає токен напряму в старих версіях,
+                    // тому використовуємо таку конструкцію або новіші методи .NET
+                    var result = await _udpClient.ReceiveAsync();
+                    MessageReceived?.Invoke(this, result.Buffer);
+                }
             }
         }
-        catch (OperationCanceledException ex)
-        {
-            //empty
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error receiving message: {ex.Message}");
-        }
+            catch (ObjectDisposedException) 
+            {
+                // Ігноруємо помилку при закритті сокета
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"UDP Error: {ex.Message}");
+            }
+        }, _cts.Token);
     }
 
     public void StopListening()
     {
-        try
-        {
-            _cts?.Cancel();
-            _udpClient?.Close();
-            Console.WriteLine("Stopped listening for UDP messages.");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error while stopping: {ex.Message}");
-        }
+        _cts?.Cancel();
     }
 
+    // Реалізуємо повне очищення, щоб не було помилок "Dispose _cts"
     public void Exit()
     {
-        try
-        {
-            _cts?.Cancel();
-            _udpClient?.Close();
-            Console.WriteLine("Stopped listening for UDP messages.");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error while stopping: {ex.Message}");
-        }
-    }
 
-    public override int GetHashCode()
-    {
-        var payload = $"{nameof(UdpClientWrapper)}|{_localEndPoint.Address}|{_localEndPoint.Port}";
+        StopListening();
 
-        using var md5 = MD5.Create();
-        var hash = md5.ComputeHash(Encoding.UTF8.GetBytes(payload));
+        _udpClient?.Close();
+        _udpClient?.Dispose();
+        _udpClient = null;
 
-        return BitConverter.ToInt32(hash, 0);
+        _cts?.Dispose();
+        _cts = null;
     }
 }

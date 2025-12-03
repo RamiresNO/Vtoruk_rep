@@ -51,7 +51,7 @@ jobs:
       - name: Build
         run: dotnet build -c Release --no-restore --no-incremental
 
-      # --- ДОДАНИЙ КРОК: ЗАПУСК ТЕСТІВ І ЗБІР ПОКРИТТЯ ---
+      # --- ЗАПУСК ТЕСТІВ І ЗБІР ПОКРИТТЯ ---
       - name: Tests with coverage
         shell: pwsh
         run: |
@@ -60,5 +60,8 @@ jobs:
             /p:CoverletOutput=TestResults/coverage.xml `
             /p:CoverletOutputFormat=opencover `
 
+      # --- ВИПРАВЛЕННЯ: ЗАВЕРШЕННЯ СКАНУВАННЯ ТА ВІДПРАВКА В SONARCLOUD ---
       - name: SonarScanner End
         shell: pwsh
+        run: |
+          dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"

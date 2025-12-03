@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace NetSdrClientApp.Networking; 
+namespace NetSdrClientApp.Networking;
 // Або обгорнуто в фігурні дужки {}, як у прикладі вище.
 public class UdpClientWrapper : IUdpClient
 {

@@ -7,8 +7,10 @@ on:
     branches: [ "master" ]
   workflow_dispatch:
 
+# ВИПРАВЛЕНО: Додано дозвіл на запис для оновлення статусу PR
 permissions:
-  pull-requests: read
+  contents: read
+  pull-requests: write
 
 jobs:
   sonar-check:
@@ -38,9 +40,9 @@ jobs:
             /o:"ramiresno" `
             /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
             /d:sonar.host.url="https://sonarcloud.io" `
-            /d:sonar.cs.opencover.reportsPaths="**/coverage.xml,TestResults/NetSdrClientApp.coverage.xml,TestResults/EchoServer.coverage.xml" `
-            /d:sonar.exclusions="**/bin/**,**/obj/**,**/sonarcloud.yml" ` # ВИПРАВЛЕНО: Лапки та зворотна лапка
-            /d:sonar.qualitygate.wait=true # <-- Останній параметр без лапки
+            /d:sonar.cs.opencover.reportsPaths="TestResults/coverage.xml" ` # <-- РЕКОМЕНДОВАНО: Спрощений шлях
+            /d:sonar.exclusions="**/bin/**,**/obj/**,**/sonarcloud.yml" `
+            /d:sonar.qualitygate.wait=true
 
       # Відновлення пакетів
       - name: Restore

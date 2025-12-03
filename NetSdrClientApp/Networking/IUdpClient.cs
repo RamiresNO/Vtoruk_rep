@@ -1,4 +1,6 @@
-﻿
+﻿﻿// Додайте цей рядок на самому початку файлу
+namespace NetSdrClientApp.Networking;
+
 public interface IUdpClient
 {
     event EventHandler<byte[]>? MessageReceived;

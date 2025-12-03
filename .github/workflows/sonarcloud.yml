@@ -38,11 +38,9 @@ jobs:
             /o:"kustiomiend-boh-2" `
             /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
             /d:sonar.host.url="https://sonarcloud.io" `
-            /d:sonar.cs.opencover.reportsPaths="**/coverage.xml" `
-            /d:sonar.cs.opencover.reportsPaths="TestResults/NetSdrClientApp.coverage.xml,TestResults/EchoServer.coverage.xml" `
-            /d:sonar.exclusions=**/bin/**,**/obj/**,**/sonarcloud.yml `
+            /d:sonar.cs.opencover.reportsPaths="/coverage.opencover.xml" `
+            /d:sonar.exclusions="/bin/,/obj/,/sonarcloud.yml" `
             /d:sonar.qualitygate.wait=true
-
       # Відновлення пакетів
       - name: Restore
         run: dotnet restore
@@ -57,8 +55,9 @@ jobs:
         run: |
           dotnet test NetSdrClientAppTests/NetSdrClientAppTests.csproj -c Release --no-build `
             /p:CollectCoverage=true `
-            /p:CoverletOutput=TestResults/coverage.xml `
             /p:CoverletOutputFormat=opencover `
+            /p:CoverletOutput=./coverage.opencover.xml
 
       - name: SonarScanner End
         shell: pwsh
+        run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"

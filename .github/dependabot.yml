@@ -1,0 +1,7 @@
+version: 2
+updates:
+  - package-ecosystem: "nuget" # Слідкувати за .NET пакетами
+    directory: "/"             # Шукати у корені репозиторію
+    schedule:
+      interval: "weekly"       # Перевіряти раз на тиждень
+    open-pull-requests-limit: 10

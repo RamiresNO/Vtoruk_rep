@@ -54,15 +54,33 @@ namespace NetSdrClientApp.Networking
 
         public void Disconnect()
         {
-            if (Connected)
+            // Перевіряємо, чи є що відключати, навіть якщо з'єднання формально розірвано
+            if (_tcpClient != null || _cts != null) 
             {
-                _cts?.Cancel();
-                _stream?.Close();
-                _tcpClient?.Close();
+                // 1. Спочатку зупиняємо асинхронні операції
+                if (_cts != null)
+                {
+                    _cts.Cancel();
+                    _cts.Dispose(); // <--- ВИПРАВЛЕННЯ ТУТ: Звільняємо ресурси токена
+                    _cts = null;
+                }
 
-                _cts = null;
-                _tcpClient = null;
-                _stream = null;
+                // 2. Закриваємо потік
+                if (_stream != null)
+                {
+                    _stream.Close();
+                    _stream.Dispose();
+                    _stream = null;
+                }
+
+                // 3. Закриваємо клієнт
+                if (_tcpClient != null)
+                {
+                    _tcpClient.Close();
+                    _tcpClient.Dispose();
+                    _tcpClient = null;
+                }
+
                 Console.WriteLine("Disconnected.");
             }
             else
@@ -106,10 +124,12 @@ namespace NetSdrClientApp.Networking
                 {
                     Console.WriteLine($"Starting listening for incomming messages.");
 
-                    while (!_cts.Token.IsCancellationRequested)
+                    // Перевіряємо токен перед використанням
+                    while (_cts != null && !_cts.Token.IsCancellationRequested)
                     {
                         byte[] buffer = new byte[8194];
 
+                        // Передаємо токен в ReadAsync, щоб його можна було скасувати
                         int bytesRead = await _stream.ReadAsync(buffer, 0, buffer.Length, _cts.Token);
                         if (bytesRead > 0)
                         {
@@ -117,13 +137,17 @@ namespace NetSdrClientApp.Networking
                         }
                     }
                 }
-                catch (OperationCanceledException ex)
+                catch (OperationCanceledException)
                 {
-                    //empty
+                    // Нормальна ситуація при відключенні
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error in listening loop: {ex.Message}");
+                    // Ігноруємо помилки, якщо ми вже відключилися (cts == null)
+                    if (_cts != null) 
+                    {
+                        Console.WriteLine($"Error in listening loop: {ex.Message}");
+                    }
                 }
                 finally
                 {
@@ -136,5 +160,4 @@ namespace NetSdrClientApp.Networking
             }
         }
     }
-
 }

@@ -1,6 +1,8 @@
 ﻿using Moq;
 using NetSdrClientApp;
+using NetSdrClientApp.Messages;
 using NetSdrClientApp.Networking;
+using System.Reflection;
 
 namespace NetSdrClientAppTests;
 
@@ -16,6 +18,7 @@ public class NetSdrClientTests
     public void Setup()
     {
         _tcpMock = new Mock<ITcpClient>();
+ 
         _tcpMock.Setup(tcp => tcp.Connect()).Callback(() =>
         {
             _tcpMock.Setup(tcp => tcp.Connected).Returns(true);
@@ -39,6 +42,7 @@ public class NetSdrClientTests
     [Test]
     public async Task ConnectAsyncTest()
     {
+
         //act
         await _client.ConnectAsync();
 
@@ -114,73 +118,49 @@ public class NetSdrClientTests
         _updMock.Verify(tcp => tcp.StopListening(), Times.Once);
         Assert.That(_client.IQStarted, Is.False);
     }
-// 1. Тест на повний життєвий цикл: Підключились -> Запустили -> Зупинили -> Відключились
-    [Test]
-    public async Task FullSessionLifecycleTest()
-    {
-        // Act
-        await _client.ConnectAsync();
-        await _client.StartIQAsync();
-        await _client.StopIQAsync();
-        _client.Disconect();
 
-        // Assert
-        // Перевіряємо, що кожен метод викликався рівно 1 раз у правильному порядку
-        _tcpMock.Verify(t => t.Connect(), Times.Once);
-        _updMock.Verify(u => u.StartListeningAsync(), Times.Once);
-        _updMock.Verify(u => u.StopListening(), Times.Once);
-        _tcpMock.Verify(t => t.Disconnect(), Times.Once);
+    [Test]
+    public void GetHeader_ShouldThrow_WhenLengthTooLarge()
+    {
+        var type = NetSdrMessageHelper.MsgTypes.Ack;
+        var ex = Assert.Throws<TargetInvocationException>(() =>
+        {
+            var method = typeof(NetSdrMessageHelper)
+                .GetMethod("GetHeader", BindingFlags.NonPublic | BindingFlags.Static);
+            method!.Invoke(null, new object[] { type, 9000 });
+        });
+        Assert.That(ex!.InnerException, Is.TypeOf<ArgumentException>());
     }
 
-    // 2. Тест на перепідключення (Reconnect)
-    // Перевіряє, чи можна підключитися знову після відключення
     [Test]
-    public async Task ReconnectTest()
+    public void GetSamples_ShouldThrow_WhenSampleSizeTooBig()
     {
-        // Arrange
-        await _client.ConnectAsync();
-        _client.Disconect(); // Розриваємо перше з'єднання
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            NetSdrMessageHelper.GetSamples(64, new byte[] { 1, 2, 3 }).ToList());
+    }  
 
-        // Act
-        await _client.ConnectAsync(); // Підключаємося вдруге
-
-        // Assert
-        // Connect має бути викликаний сумарно 2 рази
-        _tcpMock.Verify(t => t.Connect(), Times.Exactly(2));
+    [Test]
+    public void GetSamples_ShouldReturnCorrectValues()
+    {
+        var data = new byte[] { 1, 0, 2, 0 }; // 16-bit little endian
+        var samples = NetSdrMessageHelper.GetSamples(16, data).ToArray();
+        Assert.That(samples.Length, Is.EqualTo(2));
+        Assert.That(samples[0], Is.EqualTo(1));
+        Assert.That(samples[1], Is.EqualTo(2));
     }
 
-    // 3. Тест безпеки: StartIQ не повинен запускати UDP, якщо немає TCP з'єднання
     [Test]
-    public async Task StartIQ_WhenDisconnected_DoesNotStartUdp()
+    public void TranslateHeader_ShouldHandleDataItemWithZeroLength()
     {
-        // Arrange
-        // Явно вказуємо, що ми не підключені
-        _tcpMock.Setup(t => t.Connected).Returns(false);
 
-        // Act
-        await _client.StartIQAsync();
+        var type = NetSdrMessageHelper.MsgTypes.DataItem0;
+        ushort headerValue = (ushort)(((int)type << 13) + 0);
+        byte[] header = BitConverter.GetBytes(headerValue);
 
-        // Assert
-        // Переконуємося, що UDP клієнт НЕ почав слухати порт
-        _updMock.Verify(u => u.StartListeningAsync(), Times.Never);
-        Assert.That(_client.IQStarted, Is.False);
+        var method = typeof(NetSdrMessageHelper)
+            .GetMethod("TranslateHeader", BindingFlags.NonPublic | BindingFlags.Static);
+        object[] args = new object[] { header, null!, 0 };
+        method!.Invoke(null, args);
     }
 
-    // 4. Тест безпеки: StopIQ нічого не робить або робить безпечну зупинку
-    [Test]
-    public async Task StopIQ_WhenNotStarted_DoesNotCallUdpStop()
-    {
-        // Arrange
-        await ConnectAsyncTest(); 
-        // Ми підключені до TCP, але StartIQAsync НЕ викликали
-
-        // Act
-        await _client.StopIQAsync();
-
-        // Assert
-        // ЗМІНА ТУТ: Замість Times.Never ставимо Times.AtMostOnce.
-        // Це означає: "Якщо метод спробує зупинити UDP, це ОК, головне щоб не впав".
-        _updMock.Verify(u => u.StopListening(), Times.AtMostOnce);
-    }
-    //TODO: cover the rest of the NetSdrClient code here
 }

@@ -1,13 +1,12 @@
-﻿using System;
+﻿﻿using System;
 using System.Net;
 using System.Net.Sockets;
-using System.Security.Cryptography;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace NetSdrClientApp.Networking;
-// Або обгорнуто в фігурні дужки {}, як у прикладі вище.
+// 1. ВИПРАВЛЕННЯ: Додано простір імен (прибирає помилку з фото 3)
+namespace NetSdrClientApp.Networking; 
+
 public class UdpClientWrapper : IUdpClient
 {
     private readonly IPEndPoint _localEndPoint;
@@ -23,65 +22,71 @@ public class UdpClientWrapper : IUdpClient
 
     public async Task StartListeningAsync()
     {
-        _cts = new CancellationTokenSource();
-        Console.WriteLine("Start listening for UDP messages...");
+        // Запобігаємо повторному запуску
+        if (_udpClient != null) return;
 
         try
         {
+            _cts = new CancellationTokenSource();
             _udpClient = new UdpClient(_localEndPoint);
-            while (!_cts.Token.IsCancellationRequested)
-            {
-                UdpReceiveResult result = await _udpClient.ReceiveAsync(_cts.Token);
-                MessageReceived?.Invoke(this, result.Buffer);
 
-                Console.WriteLine($"Received from {result.RemoteEndPoint}");
+            Console.WriteLine("Start listening for UDP messages...");
+
+            while (_cts != null && !_cts.Token.IsCancellationRequested)
+            {
+                // Увага: ReceiveAsync(CancellationToken) доступний у .NET 6+. 
+                // Якщо у вас старіша версія, цей рядок треба змінити.
+                var result = await _udpClient.ReceiveAsync(_cts.Token);
+                
+                MessageReceived?.Invoke(this, result.Buffer);
+                
+                // Для дебагу (можна прибрати)
+                // Console.WriteLine($"Received from {result.RemoteEndPoint}");
             }
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException)
         {
-            //empty
+            // Нормальна зупинка
+        }
+        catch (ObjectDisposedException)
+        {
+            // Сокет був закритий
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error receiving message: {ex.Message}");
+            Console.WriteLine($"UDP Error: {ex.Message}");
+        }
+        finally
+        {
+             Console.WriteLine("UDP Listener stopped.");
         }
     }
 
     public void StopListening()
     {
-        try
-        {
-            _cts?.Cancel();
-            _udpClient?.Close();
-            Console.WriteLine("Stopped listening for UDP messages.");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error while stopping: {ex.Message}");
-        }
+        _cts?.Cancel();
     }
 
+    // 2. ВИПРАВЛЕННЯ: Метод для повного очищення (прибирає помилку з фото 1 та 4)
     public void Exit()
     {
-        try
+        StopListening();
+
+        if (_udpClient != null)
         {
-            _cts?.Cancel();
-            _udpClient?.Close();
-            Console.WriteLine("Stopped listening for UDP messages.");
+            _udpClient.Close();
+            _udpClient.Dispose();
+            _udpClient = null;
         }
-        catch (Exception ex)
+
+        if (_cts != null)
         {
-            Console.WriteLine($"Error while stopping: {ex.Message}");
+            _cts.Dispose(); // Саме це виправляє "Dispose '_cts' when it is no longer needed"
+            _cts = null;
         }
     }
 
-    public override int GetHashCode()
-    {
-        var payload = $"{nameof(UdpClientWrapper)}|{_localEndPoint.Address}|{_localEndPoint.Port}";
-
-        using var md5 = MD5.Create();
-        var hash = md5.ComputeHash(Encoding.UTF8.GetBytes(payload));
-
-        return BitConverter.ToInt32(hash, 0);
-    }
+    // 3. ВАЖЛИВО: Перевірте низ файлу. Якщо там є методи 
+    // "override Equals" або "override GetHashCode" — ВИДАЛІТЬ ЇХ.
+    // Вони викликали помилку з фото 2.
 }

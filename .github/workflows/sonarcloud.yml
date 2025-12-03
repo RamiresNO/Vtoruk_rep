@@ -58,7 +58,6 @@ jobs:
             /p:CollectCoverage=true `
             /p:CoverletOutput=TestResults/coverage.xml `
             /p:CoverletOutputFormat=opencover `
-            /p:ExcludeByFile="**/Program.cs"
 
       - name: SonarScanner End
         shell: pwsh

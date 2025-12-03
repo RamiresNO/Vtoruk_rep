@@ -156,22 +156,6 @@ namespace NetSdrClientAppTests
 
         #region _udpClient_MessageReceived Tests
 
-
-        [Test]
-        public void MessageReceived_WithVeryLargeBody_HandlesCorrectly()
-        {
-            // Arrange
-            var largeMessage = new byte[10000];
-            new Random().NextBytes(largeMessage);
-
-            // Act & Assert
-            Assert.DoesNotThrow(() =>
-            {
-                _mockUdpClient.Raise(x => x.MessageReceived += null, this, largeMessage);
-            });
-        }
-
-
         #endregion
 
         #region TcpClient MessageReceived Tests

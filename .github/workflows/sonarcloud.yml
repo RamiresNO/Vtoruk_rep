@@ -17,7 +17,74 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
+name: SonarCloud analysis
 
+on:
+  push:
+    branches: [ "master" ] 
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+# --- ВИПРАВЛЕНО: ЗМІНЕНО "read" НА "write" ---
+permissions:
+  contents: read
+  pull-requests: write 
+
+jobs:
+  sonar-check:
+    name: Sonar Check
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      # Встановлюємо Java 17 (обов'язково для SonarCloud)
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: 'zulu'
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: SonarScanner Begin
+        shell: pwsh
+        run: |
+          dotnet tool install --global dotnet-sonarscanner
+          dotnet sonarscanner begin `
+            /k:"RamiresNO_Vtoruk_rep" `
+            /o:"ramiresno" `
+            /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
+            /d:sonar.host.url="https://sonarcloud.io" `
+            /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" `
+            /d:sonar.exclusions="**/bin/**,**/obj/**,**/sonarcloud.yml" `
+            /d:sonar.qualitygate.wait=true
+
+      # Відновлення пакетів
+      - name: Restore
+        run: dotnet restore
+
+      # Збірка проекту
+      - name: Build
+        run: dotnet build -c Release --no-restore --no-incremental
+
+      # --- ЗАПУСК ТЕСТІВ І ЗБІР ПОКРИТТЯ ---
+      - name: Tests with coverage
+        shell: pwsh
+        run: |
+          dotnet test NetSdrClientAppTests/NetSdrClientAppTests.csproj -c Release --no-build `
+            /p:CollectCoverage=true `
+            /p:CoverletOutputFormat=opencover `
+            /p:CoverletOutput=./coverage.opencover.xml
+
+      # --- ЗАВЕРШЕННЯ СКАНУВАННЯ ТА ВІДПРАВКА В SONARCLOUD ---
+      - name: SonarScanner End
+        shell: pwsh
+        run: |
+          dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
       # Встановлюємо Java 17 (обов'язково для SonarCloud)
       - name: Set up JDK 17
         uses: actions/setup-java@v4

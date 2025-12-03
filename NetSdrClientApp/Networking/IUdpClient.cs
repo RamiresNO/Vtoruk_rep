@@ -1,15 +1,12 @@
-﻿﻿using System;
-using System.Threading.Tasks;
+﻿﻿// Додайте цей рядок на самому початку файлу
+namespace NetSdrClientApp.Networking;
 
-namespace NetSdrClientApp.Networking // <--- ДОДАЙ ЦЕЙ РЯДОК
+public interface IUdpClient
 {
-    public interface IUdpClient
-    {
-        event EventHandler<byte[]>? MessageReceived;
+    event EventHandler<byte[]>? MessageReceived;
 
-        Task StartListeningAsync();
+    Task StartListeningAsync();
 
-        void StopListening();
-        void Exit();
-    }
+    void StopListening();
+    void Exit();
 }

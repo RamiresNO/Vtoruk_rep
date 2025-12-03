@@ -7,10 +7,9 @@ on:
     branches: [ "master" ]
   workflow_dispatch:
 
-# ВИПРАВЛЕНО: Додано дозвіл на запис для оновлення статусу PR
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: write # <-- Виправлено: Додано дозвіл на запис для оновлення статусу PR
 
 jobs:
   sonar-check:
@@ -39,10 +38,10 @@ jobs:
             /k:"RamiresNO_Vtoruk_rep" `
             /o:"ramiresno" `
             /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
-            /d:sonar.host.url="https://sonarcloud.io" `
-            /d:sonar.cs.opencover.reportsPaths="TestResults/coverage.xml" ` # <-- РЕКОМЕНДОВАНО: Спрощений шлях
+            /d:sonar.host.url="https://sonarcloud.io" ` # <-- ВИПРАВЛЕНО: Зворотна лапка тут
+            /d:sonar.cs.opencover.reportsPaths="TestResults/coverage.xml" ` # Спрощений шлях для покриття
             /d:sonar.exclusions="**/bin/**,**/obj/**,**/sonarcloud.yml" `
-            /d:sonar.qualitygate.wait=true
+            /d:sonar.qualitygate.wait=true # <-- Останній параметр без лапки
 
       # Відновлення пакетів
       - name: Restore
@@ -66,3 +65,4 @@ jobs:
         shell: pwsh
         run: |
           dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+          

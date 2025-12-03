@@ -38,8 +38,6 @@ jobs:
             /o:"ramiresno" `
             /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
             /d:sonar.host.url="https://sonarcloud.io" `
-            /d:sonar.cs.opencover.reportsPaths="TestResults/NetSdrClientApp.coverage.xml,TestResults/EchoServer.coverage.xml" `
-            /d:sonar.exclusions=**/bin/**,**/obj/**,**/sonarcloud.yml `
             /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" `
             /d:sonar.exclusions="**/bin/**,**/obj/**,**/sonarcloud.yml" `
             /d:sonar.qualitygate.wait=true
@@ -58,7 +56,6 @@ jobs:
         run: |
           dotnet test NetSdrClientAppTests/NetSdrClientAppTests.csproj -c Release --no-build `
             /p:CollectCoverage=true `
-            /p:CoverletOutput=TestResults/coverage.xml `
             /p:CoverletOutputFormat=opencover `
             /p:CoverletOutput=./coverage.opencover.xml
 

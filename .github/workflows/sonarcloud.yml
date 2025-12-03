@@ -38,8 +38,7 @@ jobs:
             /o:"ramiresno" `
             /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
             /d:sonar.host.url="https://sonarcloud.io" `
-            /d:sonar.cs.opencover.reportsPaths="**/coverage.xml" `
-            /d:sonar.cs.opencover.reportsPaths="TestResults/NetSdrClientApp.coverage.xml,TestResults/EchoServer.coverage.xml" `
+            /d:sonar.cs.opencover.reportsPaths="**/coverage.xml,TestResults/NetSdrClientApp.coverage.xml,TestResults/EchoServer.coverage.xml" ` # <-- ВИПРАВЛЕНО: Об'єднано всі шляхи в один параметр
             /d:sonar.exclusions=**/bin/**,**/obj/**,**/sonarcloud.yml `
             /d:sonar.qualitygate.wait=true
 
@@ -60,7 +59,7 @@ jobs:
             /p:CoverletOutput=TestResults/coverage.xml `
             /p:CoverletOutputFormat=opencover `
 
-      # --- ВИПРАВЛЕННЯ: ЗАВЕРШЕННЯ СКАНУВАННЯ ТА ВІДПРАВКА В SONARCLOUD ---
+      # --- ЗАВЕРШЕННЯ СКАНУВАННЯ ТА ВІДПРАВКА В SONARCLOUD ---
       - name: SonarScanner End
         shell: pwsh
         run: |

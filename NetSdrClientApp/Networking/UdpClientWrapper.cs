@@ -4,8 +4,8 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 
-// Виправлено простір імен
-namespace NetSdrClientApp.Networking;
+// 1. ВИПРАВЛЕННЯ: Додано простір імен (прибирає помилку з фото 3)
+namespace NetSdrClientApp.Networking; 
 
 public class UdpClientWrapper : IUdpClient
 {
@@ -17,40 +17,49 @@ public class UdpClientWrapper : IUdpClient
 
     public UdpClientWrapper(int port)
     {
-        // Слухаємо на всіх інтерфейсах на вказаному порту
         _localEndPoint = new IPEndPoint(IPAddress.Any, port);
     }
 
-    public Task StartListeningAsync()
+    public async Task StartListeningAsync()
     {
-        if (_udpClient != null) return Task.CompletedTask;
+        // Запобігаємо повторному запуску
+        if (_udpClient != null) return;
 
-        _cts = new CancellationTokenSource();
-        _udpClient = new UdpClient(_localEndPoint);
-
-        // Запускаємо прослуховування в окремому потоці/завданні
-        return Task.Run(async () =>
+        try
         {
-            try
+            _cts = new CancellationTokenSource();
+            _udpClient = new UdpClient(_localEndPoint);
+
+            Console.WriteLine("Start listening for UDP messages...");
+
+            while (_cts != null && !_cts.Token.IsCancellationRequested)
             {
-                while (!_cts.Token.IsCancellationRequested && _udpClient != null)
-                {
-                    // ReceiveAsync у UdpClient не приймає токен напряму в старих версіях,
-                    // тому використовуємо таку конструкцію або новіші методи .NET
-                    var result = await _udpClient.ReceiveAsync();
-                    MessageReceived?.Invoke(this, result.Buffer);
-                }
+                // Увага: ReceiveAsync(CancellationToken) доступний у .NET 6+. 
+                // Якщо у вас старіша версія, цей рядок треба змінити.
+                var result = await _udpClient.ReceiveAsync(_cts.Token);
+                
+                MessageReceived?.Invoke(this, result.Buffer);
+                
+                // Для дебагу (можна прибрати)
+                // Console.WriteLine($"Received from {result.RemoteEndPoint}");
             }
         }
-            catch (ObjectDisposedException) 
-            {
-                // Ігноруємо помилку при закритті сокета
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"UDP Error: {ex.Message}");
-            }
-        }, _cts.Token);
+        catch (OperationCanceledException)
+        {
+            // Нормальна зупинка
+        }
+        catch (ObjectDisposedException)
+        {
+            // Сокет був закритий
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"UDP Error: {ex.Message}");
+        }
+        finally
+        {
+             Console.WriteLine("UDP Listener stopped.");
+        }
     }
 
     public void StopListening()
@@ -58,17 +67,26 @@ public class UdpClientWrapper : IUdpClient
         _cts?.Cancel();
     }
 
-    // Реалізуємо повне очищення, щоб не було помилок "Dispose _cts"
+    // 2. ВИПРАВЛЕННЯ: Метод для повного очищення (прибирає помилку з фото 1 та 4)
     public void Exit()
     {
-
         StopListening();
 
-        _udpClient?.Close();
-        _udpClient?.Dispose();
-        _udpClient = null;
+        if (_udpClient != null)
+        {
+            _udpClient.Close();
+            _udpClient.Dispose();
+            _udpClient = null;
+        }
 
-        _cts?.Dispose();
-        _cts = null;
+        if (_cts != null)
+        {
+            _cts.Dispose(); // Саме це виправляє "Dispose '_cts' when it is no longer needed"
+            _cts = null;
+        }
     }
+
+    // 3. ВАЖЛИВО: Перевірте низ файлу. Якщо там є методи 
+    // "override Equals" або "override GetHashCode" — ВИДАЛІТЬ ЇХ.
+    // Вони викликали помилку з фото 2.
 }

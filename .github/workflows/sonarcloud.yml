@@ -8,8 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pull-requests: write # <-- Виправлено: Додано дозвіл на запис для оновлення статусу PR
+  pull-requests: read
 
 jobs:
   sonar-check:
@@ -38,10 +37,11 @@ jobs:
             /k:"RamiresNO_Vtoruk_rep" `
             /o:"ramiresno" `
             /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
-            /d:sonar.host.url="https://sonarcloud.io" ` # <-- ВИПРАВЛЕНО: Зворотна лапка тут
-            /d:sonar.cs.opencover.reportsPaths="TestResults/coverage.xml" ` # Спрощений шлях для покриття
-            /d:sonar.exclusions="**/bin/**,**/obj/**,**/sonarcloud.yml" `
-            /d:sonar.qualitygate.wait=true # <-- Останній параметр без лапки
+            /d:sonar.host.url="https://sonarcloud.io" `
+            /d:sonar.cs.opencover.reportsPaths="**/coverage.xml" `
+            /d:sonar.cs.opencover.reportsPaths="TestResults/NetSdrClientApp.coverage.xml,TestResults/EchoServer.coverage.xml" `
+            /d:sonar.exclusions=**/bin/**,**/obj/**,**/sonarcloud.yml `
+            /d:sonar.qualitygate.wait=true
 
       # Відновлення пакетів
       - name: Restore
@@ -51,7 +51,7 @@ jobs:
       - name: Build
         run: dotnet build -c Release --no-restore --no-incremental
 
-      # --- ЗАПУСК ТЕСТІВ І ЗБІР ПОКРИТТЯ ---
+      # --- ДОДАНИЙ КРОК: ЗАПУСК ТЕСТІВ І ЗБІР ПОКРИТТЯ ---
       - name: Tests with coverage
         shell: pwsh
         run: |
@@ -60,9 +60,5 @@ jobs:
             /p:CoverletOutput=TestResults/coverage.xml `
             /p:CoverletOutputFormat=opencover `
 
-      # --- ЗАВЕРШЕННЯ СКАНУВАННЯ ТА ВІДПРАВКА В SONARCLOUD ---
       - name: SonarScanner End
         shell: pwsh
-        run: |
-          dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
-          
